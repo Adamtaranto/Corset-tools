@@ -13,21 +13,17 @@ ID appended to their original sequence name.
 **Required arguments**:
 
 -i INFASTA, --inFasta INFASTA
-
 Multi fasta to extract subset from
 
 -t TARGETCLUST, --targetClust TARGETCLUST
-
 Comma delimited file with target cluster names in column one
 
 -c CLUSTMAP, --clustMap CLUSTMAP
-
 Corset transcript-to-cluster mapping file.
 
 **optional arguments**:
 
--h, --help            show this help message and exit
+-h, --help            Show this help message and exit
 
 -o OUTFASTA, --outFasta OUTFASTA
-
 Directory for new sequence file to be written to.
