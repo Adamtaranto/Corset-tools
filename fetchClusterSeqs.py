@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 #python 2.7.5 requires biopython
+#fetchClusterSeqs.py
 #Version 1. Adam Taranto, April 2015
 #Contact, Adam Taranto, adam.taranto@anu.edu.au
 
