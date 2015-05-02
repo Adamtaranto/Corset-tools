@@ -31,3 +31,42 @@ Corset transcript-to-cluster mapping file.
 -o OUTFASTA, --outFasta OUTFASTA
 
 Directory for new sequence file to be written to.
+
+##crossClustCount.py
+
+Takes corset cluster mapping generated from two transcriptomes, as well as fasta files for those transcriptomes, and calculates the number of members from each source transcriptome in each cluster.
+
+This tool is useful for checking if clustering has successfully merged equivalent transcipts two transcriptomes where seq variation exists. i.e. when clustering across species / plant varieties / microbial isolates.
+
+**Usage**: crossClustCount.py [-h] -X TRANSFASTAX -Y TRANSFASTAY [-x TRANSNAMEX] [-y TRANSNAMEY] [-o OUTFILE] -c CLUSTMAP
+
+**Arguments**:
+-h, --help            
+
+show this help message and exit
+
+-X TRANSFASTAX, --transFastaX TRANSFASTAX
+
+Fasta file for transcriptome X
+
+-Y TRANSFASTAY, --transFastaY TRANSFASTAY
+
+Fasta file for transcriptome Y
+
+-x TRANSNAMEX, --transNameX TRANSNAMEX
+
+Unique lable for transcriptome X
+
+-y TRANSNAMEY, --transNameY TRANSNAMEY
+
+Unique lable for transcriptome Y
+
+-o OUTFILE, --outFile OUTFILE
+
+Location for summary file to be written to.
+
+-c CLUSTMAP, --clustMap CLUSTMAP
+
+Corset transcript-to-cluster mapping file.
+
+*Example**: crossClustCount.py -X testData/transcripts_X.fa -Y testData/transcripts_Y.fa -x TransSet1 -y TransSet2 -c testDataclusters.txt
