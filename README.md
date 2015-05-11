@@ -13,10 +13,14 @@ extract and annotate transcript belonging to DE clusters.
 fetchClusterSeqs.py -i transcripts.fa -t myfavClusters.csv -o transcriptsWithclusterTags.fa -c clusters.txt
 
 ###Options
--i, --inFasta         Multi fasta to extract subset from
--t, --targetClust     Comma delimited file with target cluster names in column one
+-i, --inFasta         Multi fasta to extract subset from.
+
+-t, --targetClust     Comma delimited file with target cluster names in column one.
+
 -c, --clustMap        Corset transcript-to-cluster mapping file.
--h, --help            Show this help message and exit
+
+-h, --help            Show help message and exit.
+
 -o, --outFasta        Directory for new sequence file to be written to.
 
 
@@ -41,12 +45,18 @@ variation when mapping reads between transcriptomes.
 crossClustCount.py -X transcripts_X.fa -Y transcripts_Y.fa -x SetX_Label -y SetY_Label -o outfile.tab -c clusters.txt
 
 ###Arguments
--h, --help          Show this help message and exit
--X, --transFastaX   Fasta file for transcriptome X
--Y, --transFastaY   Fasta file for transcriptome Y
--x, --transNameX    Unique lable for transcriptome X
--y, --transNameY    Unique lable for transcriptome Y
+-h, --help          Show help message and exit.
+
+-X, --transFastaX   Fasta file for transcriptome X.
+
+-Y, --transFastaY   Fasta file for transcriptome Y.
+
+-x, --transNameX    Unique lable for transcriptome X.
+
+-y, --transNameY    Unique lable for transcriptome Y.
+
 -o, --outFile       Location for summary file to be written to.
+
 -c, --clustMap      Corset transcript-to-cluster mapping file.
 
 
@@ -95,22 +105,35 @@ transDist.py -r 100 -i -0.6 -s -0.6 -x BLAST_AvsB.tab -y BLAST_BvsA.tab -a FASTA
 			 -e -3 -m -6 -o alignmentreports.txt -w
 
 ###Options
-  -h, --help              Show help message and exit
-  -r, --readLength        Length of reads intended for mapping to transcriptomes
+  -h, --help              Show help message and exit.
+
+  -r, --readLength        Length of reads intended for mapping to transcriptomes.
                           (after quality trimming).
+
   -i, --scoreMinIntercept Intercept value for Bowtie2 --score-min function.
+
   -s, --scoreMinSlope     Slope value for Bowtie2 --score-min function.
+
   -n, --pairNames         Two column tab delimited file containing names for
                           sequences from fastaA and fastaB to be aligned.
+
   -x, --blastAvB          Blast tab result file for fastaA query against fastaB
-                          subject
+                          subject.
+
   -y, --blastBvA          Blast tab result file for fastaB query against fastaA
-                          subject
+                          subject.
+
   -a, --fastaA            Multifasta set A.
+
   -b, --fastaB            Multifasta set B.
+
   -g, --gapOpen           Penalty for opening a gap.
+
   -e, --gapExtend         Penalty for extending a gap.
+
   -m, --mismatch          Pentaly for a mismatched position.
+  
   -o, --outFile           Write output table to file.
+
   -w, --recipFile         Write reciprocal blast pairs to file. True if flag is
                           set.
