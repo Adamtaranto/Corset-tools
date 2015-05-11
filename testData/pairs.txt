@@ -1,0 +1,12 @@
+#header	yo
+name1	name2					
+name3 	name4		s		
+#ignore this 	line kthanks			
+name5	name6   	 q	
+name7	name8
+nameX	nameY
+#aaaa1	bbbb1
+#aaaa2	bbbb2
+#aaaa3	bbbb3
+#aaaa4	bbbb4
+#aaaa5	bbbb5
