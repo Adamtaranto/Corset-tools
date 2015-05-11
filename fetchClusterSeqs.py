@@ -92,6 +92,12 @@ def clustDict(clustMap):
 
 	mapFile.close()
 	return clustMem
+
+	#with open(file) as src:
+		#data = (rec.rstripe()split() for rec in src)
+		#data2 = [(y,x) for x,y in data]
+		#sort(data2)
+		#tmp = itertools.groupby(data2)
 	
 def getFasta(inFasta):
 	#Create empty dictionary
