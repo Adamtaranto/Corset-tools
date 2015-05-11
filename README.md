@@ -97,11 +97,11 @@ cross-mapping for 95% of the transcript population.
 
 ###Usage
 Pairs provided:
-transDist.py -r 100 -i -0.6 -s -0.6 -n pairnames.txt -a FASTA_A.fa -b FASTA_B.fa -g -5
+transDistCalc.py -r 100 -i -0.6 -s -0.6 -n pairnames.txt -a FASTA_A.fa -b FASTA_B.fa -g -5
 			 -e -3 -m -6 -o alignmentreports.txt
 
 Get pairs from reciprocal best blast:
-transDist.py -r 100 -i -0.6 -s -0.6 -x BLAST_AvsB.tab -y BLAST_BvsA.tab -a FASTA_A.fa -b FASTA_B.fa -g -5
+transDistCalc.py -r 100 -i -0.6 -s -0.6 -x BLAST_AvsB.tab -y BLAST_BvsA.tab -a FASTA_A.fa -b FASTA_B.fa -g -5
 			 -e -3 -m -6 -o alignmentreports.txt -w
 
 ###Options
