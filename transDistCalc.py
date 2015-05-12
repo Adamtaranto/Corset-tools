@@ -4,36 +4,53 @@
 #Version 1. Adam Taranto, April 2015
 #Contact, Adam Taranto, adam.taranto@anu.edu.au
 
-#Finds the alignment score between matched transcript pairs, and estimates bowtie2 read mapping success between sets.
-#To be used for estimating the average pairwise distance between transcript sets and appropriate bowtie2 --score-min functions
-#for mapping reads across transcriptomes for downstream Corset clustering.
+#################################################################################################
+# ___________  ___   _   _  _____       ______ _____ _____ _____      _____   ___   _     _____ #
+#|_   _| ___ \/ _ \ | \ | |/  ___|      |  _  \_   _/  ___|_   _|    /  __ \ / _ \ | |   /  __ \#
+#  | | | |_/ / /_\ \|  \| |\ `--. ______| | | | | | \ `--.  | |______| /  \// /_\ \| |   | /  \/#
+#  | | |    /|  _  || . ` | `--. \______| | | | | |  `--. \ | |______| |    |  _  || |   | |    #
+#  | | | |\ \| | | || |\  |/\__/ /      | |/ / _| |_/\__/ / | |      | \__/\| | | || |___| \__/\#
+#  \_/ \_| \_\_| |_/\_| \_/\____/       |___/  \___/\____/  \_/       \____/\_| |_/\_____/\____/#
+#################################################################################################
+# 
+# Finds the alignment score between matched transcript pairs, and estimates bowtie2 read mapping 
+# success between sets.
+#
+# To be used for estimating the average pairwise distance between transcript sets and appropriate 
+# bowtie2 --score-min functions for mapping reads across transcriptomes for downstream Corset 
+# clustering.
+#################################################################################################
+
 from __future__ import print_function
 import os
 import csv
 import sys
-import numpy
-import pandas
+import numpy as np
+import pandas as pd
 #import mosaic
 import argparse
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio import pairwise2
 from os.path import basename
+#import matplotlib.pyplot as plt
+import scipy.stats as stats 
+import pylab as pl
 
-def main(fastaA, fastaB, gapOpen=-6, gapExtend=-3, mismatch=-5, readLength=100, scoreMinIntercept=-0.6, scoreMinSlope=-0.6, outFile="alignmentStats.txt", recipFile=False, blastAvB=None, blastBvA=None, pairNames=None):
+def main(fastaA, fastaB, gapOpen=-6, gapExtend=-3, mismatch=-5, readLength=100, scoreMinIntercept=-0.6, scoreMinSlope=-0.6, percentile=95, outFig="readPenaltyDist.pdf", outFile="alignmentStats.txt", verbose=False, recipFile=False, minLen=0, eVal=0.001, blastAvB=None, blastBvA=None, pairNames=None):
 
 	#Read pairs in as list of tuples
 	if pairNames:
 		pairs = readPairs(pairNames)
 	elif blastAvB and blastBvA:
-		pairs = readBlast(blastAvB,blastBvA,recipFile)
+		pairs = readBlast(minLen, eVal,blastAvB,blastBvA,recipFile)
 	else:
 		sys.exit('Must provide list of transcript pairs OR blast output files to perform reciprocal blast analysis')
 
 	#Read in transcript seqs as dictionary keyed by name
 	seqMaster = readSeqs(fastaA, fastaB)
 
-	alignmentInfo = alignTrimStats(pairs, seqMaster, gapOpen, gapExtend, mismatch, readLength)
+	alignmentInfo = alignTrimStats(pairs, seqMaster, gapOpen, gapExtend, mismatch, readLength, verbose)
 
 	#Extimate average read alignment score
 	minScore = scoreMinIntercept + (scoreMinSlope * readLength)
@@ -66,13 +83,33 @@ def main(fastaA, fastaB, gapOpen=-6, gapExtend=-3, mismatch=-5, readLength=100, 
 
 	#Print(summary stats to screen)
 	print('Summary stats:')
+	print("Total pairwise comparisons made: " + str(summaryDict['recordCount']))
 	print("Median alignment length: " + str(summaryDict['len']))
 	print("Median gaps: " + str(summaryDict['gaps']))
 	print("Median mismatch: " + str(summaryDict['mismatch']))
 	print("Median alignment score: " + str(summaryDict['score']))
 	print("Median predicted read penalty: " + str(summaryDict['readScore']))
-	print("Total pairwise comparisons made: " + str(summaryDict['recordCount']))
 
+	goldenPenalty = writeGraph(percentile, summaryDict['readScoreList'], outFig)
+
+	print(str(percentile) + '%' ' of crossmappings are predicted to be successful with a --score-min threshold <= ' + str(goldenPenalty))
+
+def writeGraph(pcen, readScoreList, outFig):
+	a = np.array(sorted(readScoreList))
+	recip = 100 - pcen
+	p = np.percentile(a, recip)
+	#Fit normal distribution
+	fit = stats.norm.pdf(a, np.mean(a), np.std(a))
+	#Plot gaussian curve with blue dashed line
+	pl.plot(a,fit,'b-')
+	#Not sure about this normed setting.. normed=True
+	pl.hist(a, bins=20, color='c') 
+	#Vertical line at nominated percentile
+	pl.axvline(p, color='b', linestyle='dashed', linewidth=2)
+	#Render graphic
+	pl.savefig(outFig, bbox_inches='tight')
+
+	return p
 
 def readPairs(pairNames):
 	with open(pairNames) as src:
@@ -82,7 +119,7 @@ def readPairs(pairNames):
 
 	return pairs
 
-def readBlast(blastTabA, blastTabB,recipFile):
+def readBlast(minLen, eVal, blastTabA, blastTabB,recipFile):
 	#Reads in two blast tab output files and returns a list of pairs which are reciprocal best blast hits.
 	from collections import Counter
 	pairs = list()
@@ -95,6 +132,12 @@ def readBlast(blastTabA, blastTabB,recipFile):
 		for line in cleaned_data:
 			#Ignore lines begining with '#'
 			if line[0][0] == "#":
+				continue
+			#Ignore if eVal is above threshold
+			if float(line[10]) >= eVal:
+				continue
+			#Ignore in hit length is less than threshold
+			if line[3] <= minLen:
 				continue
 			#If first record for this query, store the query:target pair
 			if line[0] != lastQuery:	
@@ -148,7 +191,7 @@ def readSeqs(fastaA, fastaB):
 	return seqMaster
 
 def median(valList):
-    return numpy.median(numpy.array(valList))
+    return np.median(np.array(valList))
 
 def format_alignment(align1, align2, scoreBitscore): 
 	#Remake the Pairwise2 alignment formatter such that it works.
@@ -172,14 +215,14 @@ def format_alignment(align1, align2, scoreBitscore):
 	s.append("\n%s\n" % align2)
 
 	#Report scores
-	s.append("  Score=%g\n" % score)
-	s.append("  Score=%g\n" % bitscore)
+	s.append("Score= %g\n" % score)
+	s.append("BitScore= %g\n" % bitscore)
 	
 	return ''.join(s)
 
 def getBitScore(alignedA, alignedB):
 	score = 0
-	scoremat = pandas.read_csv(os.path.join(os.path.dirname(__file__),'EDNAFULL.txt'),header=0, index_col=0, sep="\s+")
+	scoremat = pd.read_csv(os.path.join(os.path.dirname(__file__),'EDNAFULL.txt'),header=0, index_col=0, sep="\s+")
 	for xx, yy in zip(alignedA, alignedB):
 		xx = '*' if xx == '-' else xx
 		yy = '*' if yy == '-' else yy
@@ -190,12 +233,10 @@ def getBitScore(alignedA, alignedB):
 
 	return scoreBitscore
 
-def alignTrimStats(pairs, seqMaster, gapOpen, gapExtend, mismatch, readLength):
+def alignTrimStats(pairs, seqMaster, gapOpen, gapExtend, mismatch, readLength, verbose):
 	#Initialize dict and counter
 	n = 0
 	alignDict = {}
-	#Counter to refresh number of remaining seqs to process
-	print(str(n+1) + ' / ' + str(len(pairs)) + ' alignments processed.', end='\r')
 
 	#Check for len diff > 50%
 	for a,b in pairs:
@@ -206,7 +247,6 @@ def alignTrimStats(pairs, seqMaster, gapOpen, gapExtend, mismatch, readLength):
 		#Test for min comparable length
 		if len(aSeq) < 0.5 * len(bSeq):
 			continue
-
 		if len(bSeq) < 0.5 * len(aSeq):
 			continue
 
@@ -243,7 +283,9 @@ def alignTrimStats(pairs, seqMaster, gapOpen, gapExtend, mismatch, readLength):
 		#Returns tuple with score and bitscore
 		scoreBitscore = getBitScore(trimmedAlign[0][0],trimmedAlign[0][1])
 
-		print(format_alignment(trimmedAlign[0][0],trimmedAlign[0][1], scoreBitscore))
+		if verbose:
+			print('\nAlignment: ' + a + '-' + b)
+			print(format_alignment(trimmedAlign[0][0],trimmedAlign[0][1], scoreBitscore))
 
 		#Final alignment
 		alignDict[n]['aligned'] = trimmedAlign
@@ -368,9 +410,6 @@ def summaryStats(alignDict):
 		summary['readScore'].append(alignDict[n]['readScore'])
 		count += 1
 
-	print('\n mismatch list:')
-	print(summary['mismatch'])
-
 	summaryStats = {}
 	summaryStats['len'] = float()
 	summaryStats['gaps'] = float()
@@ -378,6 +417,7 @@ def summaryStats(alignDict):
 	summaryStats['score'] = float()
 	summaryStats['readScore'] = float()
 	summaryStats['recordCount'] = int()
+	summaryStats['readScoreList'] = list()
 
 	summaryStats['len'] = median(summary['len'])
 	summaryStats['gaps'] = median(summary['gaps'])
@@ -385,12 +425,13 @@ def summaryStats(alignDict):
 	summaryStats['score'] = median(summary['score'])
 	summaryStats['readScore'] = median(summary['readScore'])
 	summaryStats['recordCount'] = count
+	summaryStats['readScoreList'] = summary['readScore']
 
 	#Should probably summarise total pass / fail
 	return summaryStats
 
 if __name__== '__main__':
-	###Argument handling.
+	###Argument handling / alphabet soup.
 	arg_parser = argparse.ArgumentParser(description='Finds the alignment score between matched transcript pairs, and estimates bowtie2 read mapping success between sets.')
 	arg_parser.add_argument("-r", "--readLength", default=100, type=int, help="Length of reads intended for mapping to transcriptomes (after quality trimming).")
 	arg_parser.add_argument("-i", "--scoreMinIntercept", default=-0.6, type=float, help="Intercept value for Bowtie2 --score-min function.")
@@ -405,7 +446,12 @@ if __name__== '__main__':
 	arg_parser.add_argument("-m", "--mismatch", default=-6, type=float, help="Pentaly for a mismatched position.")
 	arg_parser.add_argument("-o", "--outFile", default="alignmentStats.txt", help="Write output table to file.")
 	arg_parser.add_argument("-w", "--recipFile", action='store_true', default=False, help="Write reciprocal blast pairs to file. True if flag is set.")
-	
+	arg_parser.add_argument("-l","--minLen", default=0, help="Minimum length of hit to consider valid.")
+	arg_parser.add_argument("-E","--eVal", default=0.001, type=float, help="Minimum eval to consider valid pair.")
+	arg_parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Write formatted alignments to screen.")
+	arg_parser.add_argument("-p", "--percentile", default=95, type=int, help="Report the estimated read penalty at the lower bound of this percentile.")
+	arg_parser.add_argument("-f", "--outFig", default="readPenaltyDist.pdf", help="Write read penalty distribution histogram to this file.")
+
 	#Parse arguments
 	args = arg_parser.parse_args()
 
@@ -423,5 +469,10 @@ if __name__== '__main__':
 	mismatch = args.mismatch
 	outFile = args.outFile
 	recipFile = args.recipFile
+	minLen = args.minLen
+	eVal = args.eVal
+	verbose = args.verbose
+	percentile = args.percentile
+	outFig = args.outFig
 
-	main(fastaA, fastaB, gapOpen, gapExtend, mismatch, readLength, scoreMinIntercept, scoreMinSlope, outFile, recipFile, blastAvB, blastBvA, pairNames)
+	main(fastaA, fastaB, gapOpen, gapExtend, mismatch, readLength, scoreMinIntercept, scoreMinSlope, percentile, outFig, outFile, verbose, recipFile, minLen, eVal, blastAvB, blastBvA, pairNames)
