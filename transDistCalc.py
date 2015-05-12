@@ -52,7 +52,7 @@ def main(fastaA, fastaB, gapOpen=-6, gapExtend=-3, mismatch=-5, readLength=100, 
 
 	alignmentInfo = alignTrimStats(pairs, seqMaster, gapOpen, gapExtend, mismatch, readLength, verbose)
 
-	#Extimate average read alignment score
+	#Estimate average read alignment score
 	minScore = scoreMinIntercept + (scoreMinSlope * readLength)
 
 	#Summary stats for all aligned pairs
@@ -64,11 +64,13 @@ def main(fastaA, fastaB, gapOpen=-6, gapExtend=-3, mismatch=-5, readLength=100, 
 	header = "\t".join(['transNameA', 'transNameB', 'align_len', 'gaps', 'mismatches', 'align_score', 'mean_read_penalty', 'cross_map' ])
 	summaryFile.write(header + "\n")
 	
+	totalAligns = 0
+	crossMapPass = 0
 	for n in alignmentInfo.iterkeys():
-
+		totalAligns += 1
 		if minScore <= alignmentInfo[n]['readScore']:
-			mappable = 'SUCCSESS'
-
+			mappable = 'SUCCESS'
+			crossMapPass +=1
 		if minScore > alignmentInfo[n]['readScore']:
 			mappable = 'FAIL'
 
@@ -92,11 +94,14 @@ def main(fastaA, fastaB, gapOpen=-6, gapExtend=-3, mismatch=-5, readLength=100, 
 
 	goldenPenalty = writeGraph(percentile, summaryDict['readScoreList'], outFig)
 
+	print('Proposed penalty threshold of ' + str(minScore) + ' predicted to allow crossmapping for ' + str(crossMapPass) + ' of ' + str(totalAligns) + ' pairs.' )
 	print(str(percentile) + '%' ' of crossmappings are predicted to be successful with a --score-min threshold <= ' + str(goldenPenalty))
 
 def writeGraph(pcen, readScoreList, outFig):
 	a = np.array(sorted(readScoreList))
 	recip = 100 - pcen
+	print(a)
+	print(recip)
 	p = np.percentile(a, recip)
 	#Fit normal distribution
 	fit = stats.norm.pdf(a, np.mean(a), np.std(a))
@@ -119,7 +124,7 @@ def readPairs(pairNames):
 
 	return pairs
 
-def readBlast(minLen, eVal, blastTabA, blastTabB,recipFile):
+def readBlast(minLen, eVal, blastTabA, blastTabB, recipFile):
 	#Reads in two blast tab output files and returns a list of pairs which are reciprocal best blast hits.
 	from collections import Counter
 	pairs = list()
@@ -134,10 +139,10 @@ def readBlast(minLen, eVal, blastTabA, blastTabB,recipFile):
 			if line[0][0] == "#":
 				continue
 			#Ignore if eVal is above threshold
-			if float(line[10]) >= eVal:
+			if float(line[10]) >= float(eVal):
 				continue
 			#Ignore in hit length is less than threshold
-			if line[3] <= minLen:
+			if line[3] <= int(minLen):
 				continue
 			#If first record for this query, store the query:target pair
 			if line[0] != lastQuery:	
@@ -152,6 +157,12 @@ def readBlast(minLen, eVal, blastTabA, blastTabB,recipFile):
 		lastQuery = None
 		for line in cleaned_data:
 			if line[0][0] == "#":
+				continue
+			#Ignore if eVal is above threshold
+			if float(line[10]) >= float(eVal):
+				continue
+			#Ignore in hit length is less than threshold
+			if line[3] <= int(minLen):
 				continue
 			if line[0] != lastQuery:	
 				flipPair = (line[1],line[0])
@@ -174,7 +185,6 @@ def readBlast(minLen, eVal, blastTabA, blastTabB,recipFile):
 			outFile.write(abPair+ "\n")
 
 		outFile.close()
-
 	return recipPairs
 
 def readSeqs(fastaA, fastaB):
