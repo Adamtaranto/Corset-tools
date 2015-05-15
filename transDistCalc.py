@@ -269,7 +269,7 @@ def makeGoodList(pairs, seqMaster):
 def doAligns (goodList,proc):
 	#print(goodList)
 	#X = [x for x in goodList] 
-	pool = Pool(processes = int(proc))
+	pool = Pool(processes = proc)
 	finalAligns = pool.map(splitPairsAlign, goodList)
 	
 	return finalAligns
@@ -279,6 +279,7 @@ def splitPairsAlign(goodPair):
 	#Pairwise2. Global align. Custom penalties. Same penalties for both seqs.
 	#Identical characters are given 2 points, 1 point is deducted for each non-identical character.
 	#5 points are deducted when opening a gap, and 3 points are deducted when extending it.
+	print('Aligning: ' + goodPair[2] + '-' +goodPair[3])
 	allGlobal = pairwise2.align.globalms(goodPair[0],goodPair[1], 2, -1, -5, -3)
 	firstAlign = [(allGlobal[0][0],allGlobal[0][1])]
 	#Trims gap positions at start and end of alignment, returns alignment tuple
@@ -474,7 +475,7 @@ if __name__== '__main__':
 	arg_parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Write formatted alignments to screen.")
 	arg_parser.add_argument("-p", "--percentile", default=95, type=int, help="Report the estimated read penalty at the lower bound of this percentile.")
 	arg_parser.add_argument("-f", "--outFig", default="readPenaltyDist.pdf", help="Write read penalty distribution histogram to this file.")
-	arg_parser.add_argument("--proc", default=4, help="Number of processors to split alignment job over")
+	arg_parser.add_argument("--proc", default=4, type=int, help="Number of processors to split alignment job over")
 
 	#Parse arguments
 	args = arg_parser.parse_args()
