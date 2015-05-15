@@ -25,19 +25,18 @@ from __future__ import print_function
 import os
 import csv
 import sys
-import numpy as np
-import pandas as pd
-#import mosaic
 import argparse
+import numpy as np
+import pylab as pl
+import pandas as pd
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio import pairwise2
-from os.path import basename
-#import matplotlib.pyplot as plt
 import scipy.stats as stats 
-import pylab as pl
+from os.path import basename
+from multiprocessing import Pool
 
-def main(fastaA, fastaB, gapOpen=-6, gapExtend=-3, mismatch=-5, readLength=100, scoreMinIntercept=-0.6, scoreMinSlope=-0.6, percentile=95, outFig="readPenaltyDist.pdf", outFile="alignmentStats.txt", verbose=False, recipFile=False, minLen=0, eVal=0.001, blastAvB=None, blastBvA=None, pairNames=None):
+def main(fastaA, fastaB, gapOpen=-6, gapExtend=-3, mismatch=-5, readLength=100, scoreMinIntercept=-0.6, scoreMinSlope=-0.6, percentile=95, outFig="readPenaltyDist.pdf", outFile="alignmentStats.txt", verbose=False, proc=4, recipFile=False, minLen=0, eVal=0.001, blastAvB=None, blastBvA=None, pairNames=None):
 
 	#Read pairs in as list of tuples
 	if pairNames:
@@ -50,7 +49,14 @@ def main(fastaA, fastaB, gapOpen=-6, gapExtend=-3, mismatch=-5, readLength=100, 
 	#Read in transcript seqs as dictionary keyed by name
 	seqMaster = readSeqs(fastaA, fastaB)
 
-	alignmentInfo = alignTrimStats(pairs, seqMaster, gapOpen, gapExtend, mismatch, readLength, verbose)
+	#Keep only transcipt pairs of comparable size, return (SeqA, SeqB, nameA, nameB)
+	goodList = makeGoodList(pairs, seqMaster)
+
+	#Multithread the alignment and trimming of sequences, return (SeqAFinal, SeqBFinal, nameA, nameB)
+	finalAligns = doAligns (goodList,proc)
+
+	#Get stats for all alignments
+	alignmentInfo = alignStats(finalAligns, gapOpen, gapExtend, mismatch, readLength, verbose)
 
 	#Estimate average read alignment score
 	minScore = scoreMinIntercept + (scoreMinSlope * readLength)
@@ -64,6 +70,7 @@ def main(fastaA, fastaB, gapOpen=-6, gapExtend=-3, mismatch=-5, readLength=100, 
 	header = "\t".join(['transNameA', 'transNameB', 'align_len', 'gaps', 'mismatches', 'align_score', 'mean_read_penalty', 'cross_map' ])
 	summaryFile.write(header + "\n")
 	
+	#Check if each alignment is expected to pass the cross-mapping min-score threshold 
 	totalAligns = 0
 	crossMapPass = 0
 	for n in alignmentInfo.iterkeys():
@@ -243,80 +250,86 @@ def getBitScore(alignedA, alignedB):
 
 	return scoreBitscore
 
-def alignTrimStats(pairs, seqMaster, gapOpen, gapExtend, mismatch, readLength, verbose):
-	#Initialize dict and counter
-	n = 0
-	alignDict = {}
-
+def makeGoodList(pairs, seqMaster):
+	goodList = list()
 	#Check for len diff > 50%
 	for a,b in pairs:
 		#Retrieve sequences by name
 		aSeq = seqMaster[a]
 		bSeq = seqMaster[b]
-
 		#Test for min comparable length
 		if len(aSeq) < 0.5 * len(bSeq):
 			continue
 		if len(bSeq) < 0.5 * len(aSeq):
 			continue
+		goodList.append((aSeq,bSeq,a,b))
 
+	return goodList
+
+def doAligns (goodList,proc):
+	#print(goodList)
+	#X = [x for x in goodList] 
+	pool = Pool(processes = int(proc))
+	finalAligns = pool.map(splitPairsAlign, goodList)
+	
+	return finalAligns
+
+def splitPairsAlign(goodPair):
+	#Four part tuple: aSeq,bSeq,a,b
+	#Pairwise2. Global align. Custom penalties. Same penalties for both seqs.
+	#Identical characters are given 2 points, 1 point is deducted for each non-identical character.
+	#5 points are deducted when opening a gap, and 3 points are deducted when extending it.
+	allGlobal = pairwise2.align.globalms(goodPair[0],goodPair[1], 2, -1, -5, -3)
+	firstAlign = [(allGlobal[0][0],allGlobal[0][1])]
+	#Trims gap positions at start and end of alignment, returns alignment tuple
+	trimmedAlign = trimAlign(firstAlign)
+	finalAlign = (trimmedAlign[0][0],trimmedAlign[0][1],goodPair[2],goodPair[3])
+
+	return finalAlign
+
+def alignStats(finalAligns, gapOpen, gapExtend, mismatch, readLength, verbose):
+	#Initialize dict and counter
+	alignDict = {}
+
+	for aSeq,bSeq,a,b in finalAligns:
+		n = a + "-" + b
 		alignDict[n] = {}
-
 		alignDict[n]['SeqA'] = list()
 		alignDict[n]['SeqB'] = list()
 		alignDict[n]['aligned'] = list()
 		alignDict[n]['len'] = int()
 		alignDict[n]['gaps'] = int()
 		alignDict[n]['mismatch'] = int()
-		#alignDict[n]['score'] = float()
 		alignDict[n]['readScore'] = float()
 
 		#Set sequence names
 		alignDict[n]['SeqA'] = a
 		alignDict[n]['SeqB'] = b
 
-		#Generate primary alignment
-		#Returns tuple of Sequence 1 aligned, sequence 2 aligned
-		#firstAlign = [mosaic.pairwisealign(aSeq, bSeq, gapopen=gapOpen, gapextend=gapExtend, AA='false')]
-
-		#Pairwise2. Global align. Custom penalties. Same penalties for both seqs.
-		#Identical characters are given 2 points, 1 point is deducted for each non-identical character.
-		#5 points are deducted when opening a gap, and 3 points are deducted when extending it.
-		allGlobal = pairwise2.align.globalms(aSeq, bSeq, 2, -1, -5, -3)
-
-		#Package resulting global alignment as a tuple
-		firstAlign = [(allGlobal[0][0],allGlobal[0][1])]
-
-		#Trims gap positions at start and end of alignment, return alignment tuple
-		trimmedAlign = trimAlign(firstAlign)
-
 		#Returns tuple with score and bitscore
-		scoreBitscore = getBitScore(trimmedAlign[0][0],trimmedAlign[0][1])
+		scoreBitscore = getBitScore(aSeq,bSeq)
 
 		if verbose:
 			print('\nAlignment: ' + a + '-' + b)
-			print(format_alignment(trimmedAlign[0][0],trimmedAlign[0][1], scoreBitscore))
+			print(format_alignment(aSeq,bSeq, scoreBitscore))
 
 		#Final alignment
-		alignDict[n]['aligned'] = trimmedAlign
+		alignDict[n]['aligned'] = (aSeq,bSeq)
 
 		# Calculate the number of mismatches in alignment
-		alignDict[n]['mismatch'] = countMismatch(trimmedAlign[0][0],trimmedAlign[0][1])
+		alignDict[n]['mismatch'] = countMismatch(aSeq,bSeq)
 
 		# Calculate the number of gaps
-		alignDict[n]['gaps'] = countGaps(trimmedAlign[0][0],trimmedAlign[0][1])
+		alignDict[n]['gaps'] = countGaps(aSeq,bSeq)
 
 		#Store trimmed alignment length
-		alignDict[n]['len'] = len(trimmedAlign[0][0])
+		alignDict[n]['len'] = len(aSeq)
 
 		#Calculate average penalty score for read length k
-		alignDict[n]['readScore'] = readScore(alignDict[n]['gaps'], alignDict[n]['mismatch'], len(trimmedAlign[0][0]), gapExtend, gapOpen, mismatch, readLength)
+		alignDict[n]['readScore'] = readScore(alignDict[n]['gaps'], alignDict[n]['mismatch'], len(aSeq), gapExtend, gapOpen, mismatch, readLength)
 
 		#Whole alignment score
 		alignDict[n]['score'] = scoreBitscore[0][0]
-		
-		#Increment key counter
-		n += 1
 
 	return alignDict
 
@@ -461,6 +474,7 @@ if __name__== '__main__':
 	arg_parser.add_argument("-v", "--verbose", action='store_true', default=False, help="Write formatted alignments to screen.")
 	arg_parser.add_argument("-p", "--percentile", default=95, type=int, help="Report the estimated read penalty at the lower bound of this percentile.")
 	arg_parser.add_argument("-f", "--outFig", default="readPenaltyDist.pdf", help="Write read penalty distribution histogram to this file.")
+	arg_parser.add_argument("--proc", default=4, help="Number of processors to split alignment job over")
 
 	#Parse arguments
 	args = arg_parser.parse_args()
@@ -484,5 +498,6 @@ if __name__== '__main__':
 	verbose = args.verbose
 	percentile = args.percentile
 	outFig = args.outFig
+	proc = args.proc
 
-	main(fastaA, fastaB, gapOpen, gapExtend, mismatch, readLength, scoreMinIntercept, scoreMinSlope, percentile, outFig, outFile, verbose, recipFile, minLen, eVal, blastAvB, blastBvA, pairNames)
+	main(fastaA, fastaB, gapOpen, gapExtend, mismatch, readLength, scoreMinIntercept, scoreMinSlope, percentile, outFig, outFile, verbose, proc, recipFile, minLen, eVal, blastAvB, blastBvA, pairNames)
