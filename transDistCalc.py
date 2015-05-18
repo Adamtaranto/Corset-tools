@@ -25,6 +25,7 @@ from __future__ import print_function
 import os
 import csv
 import sys
+import math
 import argparse
 import numpy as np
 import pylab as pl
@@ -34,7 +35,9 @@ from Bio.Seq import Seq
 from Bio import pairwise2
 import scipy.stats as stats 
 from os.path import basename
+from contextlib import closing
 from multiprocessing import Pool
+
 
 def main(fastaA, fastaB, gapOpen=-6, gapExtend=-3, mismatch=-5, readLength=100, scoreMinIntercept=-0.6, scoreMinSlope=-0.6, percentile=95, outFig="readPenaltyDist.pdf", outFile="alignmentStats.txt", verbose=False, proc=4, recipFile=False, minLen=0, eVal=0.001, blastAvB=None, blastBvA=None, pairNames=None):
 
@@ -267,11 +270,20 @@ def makeGoodList(pairs, seqMaster):
 	return goodList
 
 def doAligns (goodList,proc):
-	#print(goodList)
-	#X = [x for x in goodList] 
-	pool = Pool(processes = proc)
-	finalAligns = pool.map(splitPairsAlign, goodList)
-	
+	#Generator to return pairs one by one
+	X = [x for x in goodList]
+	#Ensure chunksize > 1
+	if len(goodList)//10 <= 1:
+		chunk = 1
+	else:
+		chunk = math.trunc(len(goodList)//10)
+	#Initialise list to store output
+	finalAligns = list()
+	#Run alignment tasks
+	with closing(Pool(processes=proc, maxtasksperchild=proc)) as pool:
+		for result in pool.imap_unordered(splitPairsAlign, X, chunksize=chunk):
+			finalAligns.append(result)
+		pool.terminate()
 	return finalAligns
 
 def splitPairsAlign(goodPair):
