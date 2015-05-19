@@ -272,18 +272,14 @@ def makeGoodList(pairs, seqMaster):
 def doAligns (goodList,proc):
 	#Generator to return pairs one by one
 	X = [x for x in goodList]
-	#Ensure chunksize > 1
-	if len(goodList)//10 <= 1:
-		chunk = 1
-	else:
-		chunk = math.trunc(len(goodList)//10)
 	#Initialise list to store output
 	finalAligns = list()
-	#Run alignment tasks
-	with closing(Pool(processes=proc, maxtasksperchild=proc)) as pool:
-		for result in pool.imap_unordered(splitPairsAlign, X, chunksize=chunk):
-			finalAligns.append(result)
-		pool.terminate()
+	#For some bizzaro reason only works if we check namespace again here.
+	if __name__=='__main__':
+		with closing(Pool(processes=proc,maxtasksperchild=4)) as pool:
+			finalAligns = pool.map(splitPairsAlign, X)
+			pool.close()
+			pool.join()
 	return finalAligns
 
 def splitPairsAlign(goodPair):
@@ -297,7 +293,10 @@ def splitPairsAlign(goodPair):
 	#Trims gap positions at start and end of alignment, returns alignment tuple
 	trimmedAlign = trimAlign(firstAlign)
 	finalAlign = (trimmedAlign[0][0],trimmedAlign[0][1],goodPair[2],goodPair[3])
-
+	del allGlobal
+	del firstAlign
+	del trimmedAlign
+	print('finished')
 	return finalAlign
 
 def alignStats(finalAligns, gapOpen, gapExtend, mismatch, readLength, verbose):
