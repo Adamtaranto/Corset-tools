@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-#python 2.7.5 requires biopython
-#transDist.py
+#python 2.7.5 requires biopython, numpy, scipy, matplotlib, pandas
+#transDistCalc.py
 #Version 1. Adam Taranto, April 2015
 #Contact, Adam Taranto, adam.taranto@anu.edu.au
 
