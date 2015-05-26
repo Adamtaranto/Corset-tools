@@ -276,10 +276,10 @@ def doAligns (goodList,proc):
 	finalAligns = list()
 	#For some bizzaro reason only works if we check namespace again here.
 	if __name__=='__main__':
-		with closing(Pool(processes=proc,maxtasksperchild=4)) as pool:
-			finalAligns = pool.map(splitPairsAlign, X)
-			pool.close()
-			pool.join()
+		with closing(Pool(processes=proc,maxtasksperchild=1)) as pool:
+			finalAligns = pool.map(splitPairsAlign, X, chunksize=1)
+		pool.close()
+		pool.join(10)
 	return finalAligns
 
 def splitPairsAlign(goodPair):
