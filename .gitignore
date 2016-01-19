@@ -7,6 +7,10 @@
 *.o
 *.so
 
+#Python Stuff#
+##############
+*.pyc
+
 # Directories #
 ###############
 devnotes/

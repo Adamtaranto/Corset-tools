@@ -278,8 +278,8 @@ def doAligns (goodList,proc):
 	if __name__=='__main__':
 		with closing(Pool(processes=proc,maxtasksperchild=1)) as pool:
 			finalAligns = pool.map(splitPairsAlign, X, chunksize=1)
-		pool.close()
-		pool.join(10)
+			pool.close()
+			pool.join(10)
 	return finalAligns
 
 def splitPairsAlign(goodPair):
