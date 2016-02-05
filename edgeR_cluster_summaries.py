@@ -122,6 +122,7 @@ def getSeqLabels(seqDict):
         allLabels = setLabels.copy()
         setLabels = dict.fromkeys(seqDict[x].keys(),x)
         allLabels.update(setLabels)
+        setLabels = allLabels.copy()
     return allLabels
 
 def getClustID(resultTable):
