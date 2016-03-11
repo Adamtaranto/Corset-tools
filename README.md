@@ -21,7 +21,9 @@ fetchClusterSeqs.py -i transcripts.fa -t myfavClusters.csv -o transcriptsWithclu
 
 -h, --help            Show help message and exit.
 
--o, --outFasta        Directory for new sequence file to be written to.
+-o, --outFasta        Directory for new sequence file to be written to. i.e. output/newfile.fa
+
+-l  --longest         If set only report the longest transcript per cluster
 
 
 ## Cross Cluster Counter
