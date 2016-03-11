@@ -27,7 +27,7 @@ def main(inFasta=None, targetClust=None, outFasta='filtered_seqs.fa', clustMap=N
         sys.exit('No input fasta provided')
 
     if targetClust is None:
-        sys.exit('No name list provided')
+        print('No target cluster list provided. Reporting for all clusters.')
 
     if clustMap is None:
         sys.exit('No cluster mapping file provided')
@@ -39,25 +39,34 @@ def main(inFasta=None, targetClust=None, outFasta='filtered_seqs.fa', clustMap=N
     SeqMaster = getFasta(inFasta)
 
     #Open list of target clusters
-    f = open(targetClust, 'rt')
-    reader = csv.reader(f, dialect='excel')
+    if targetClust:
+        f = open(targetClust, 'rt')
+        reader = csv.reader(f, dialect='excel')
+        getClusters = list()
+        for row in reader:
+            if not getClusters.count(row[0]):
+                getClusters.append(row[0]) 
+        f.close()
+    else:
+        getClusters = clustMem.keys()
 
     #Open output fasta
     fasta_file = open(outFasta,'w')
 
     #Open log file for names not found in master set
-    error_list = open(str('NotFound_' + basename(targetClust)),'w')
+    if targetClust:
+        error_list = open(str('NotFound_' + basename(targetClust) + '.log'),'w')
+    else:
+        error_list = open(str('NotFound_Clusters_Transcripts.log'),'w')
 
     if getLong:
-        reportLongSeqs(f,reader,fasta_file,error_list,clustMem,SeqMaster)
+        reportLongSeqs(getClusters,fasta_file,error_list,clustMem,SeqMaster)
     else:
-        reportSeqs(f,reader,fasta_file,error_list,clustMem,SeqMaster)
+        reportSeqs(getClusters,fasta_file,error_list,clustMem,SeqMaster)
 
-def reportSeqs(f,reader,fasta_file,error_list,clustMem,SeqMaster):
+def reportSeqs(getClusters,fasta_file,error_list,clustMem,SeqMaster):
     #Write records for transcripts belonging to target clusters to new fasta
-    for row in reader:
-        #Get next target cluster name
-        name = row[0]
+    for name in getClusters:
         #Check if target cluster exists in cluster-map dictionary
         if name in clustMem:
             #For each transcript belonging to target cluster
@@ -79,15 +88,12 @@ def reportSeqs(f,reader,fasta_file,error_list,clustMem,SeqMaster):
         else:
             print('Target cluster not in Map file: ' + name)
             error_list.write(name + "\n")
-    f.close()
     fasta_file.close()
     error_list.close()
 
-def reportLongSeqs(f,reader,fasta_file,error_list,clustMem,SeqMaster):
+def reportLongSeqs(getClusters,fasta_file,error_list,clustMem,SeqMaster):
     #Write records for transcripts belonging to target clusters to new fasta
-    for row in reader:
-        #Get next target cluster name
-        name = row[0]
+    for name in getClusters:
         longestSeqLen = 0
         #Check if target cluster exists in cluster-map dictionary
         if name in clustMem:
@@ -115,7 +121,6 @@ def reportLongSeqs(f,reader,fasta_file,error_list,clustMem,SeqMaster):
         else:
             print('Target cluster not in Map file: ' + name)
             error_list.write(name + "\n")
-    f.close()
     fasta_file.close()
     error_list.close()
 
@@ -160,8 +165,9 @@ def mainArgs():
                         required=True, 
                         help="Multi fasta to extract subset from")
     parser.add_argument("-t","--targetClust", 
-                        required=True, 
-                        help="CSV file with target cluster names in column one")
+                        default=None,
+                        help="Text file with target cluster names in column one. If not provided \
+                        will return transcripts for all clusters.")
     parser.add_argument("-o","--outFasta", 
                         default='filtered_seqs.fa', 
                         help="Directory for new sequence file to be written to.")
