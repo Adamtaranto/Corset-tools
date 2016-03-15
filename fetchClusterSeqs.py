@@ -134,17 +134,17 @@ def clustDict(clustMap):
     #Sample data row:
     #TranscriptID   ClusterID
     #nnt3Ldvymb Cluster-0.0
-    mapFile = open(clustMap, 'rt')
-    readMap = csv.reader(mapFile,delimiter='\t')
+    with open(clustMap) as mapFile:
+        readMap = [line.rstrip('\n').split() for line in mapFile]
     clustMem={}
     #Write records for seqs in name file to new fasta
     for row in readMap:
+        print(row)
         transID=row[0]
         clustID=row[1]
         if clustID not in clustMem:
             clustMem[clustID] = list()
         clustMem[clustID].append(transID)
-    mapFile.close()
     return clustMem
     
 def getFasta(inFasta):
