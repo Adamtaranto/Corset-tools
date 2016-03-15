@@ -139,7 +139,6 @@ def clustDict(clustMap):
     clustMem={}
     #Write records for seqs in name file to new fasta
     for row in readMap:
-        print(row)
         transID=row[0]
         clustID=row[1]
         if clustID not in clustMem:
