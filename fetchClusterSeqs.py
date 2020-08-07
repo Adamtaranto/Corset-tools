@@ -125,7 +125,7 @@ def reportLongSeqs(getClusters,fasta_file,error_list,clustMem,SeqMaster):
 
 def fastaLines(seq=None, n=80, file=None):
     """Yield successive n-sized chunks from seq."""
-    for i in xrange(0, len(seq), n):
+    for i in range(0, len(seq), n):
         file.write(seq[i:i+n] + "\n")
 
 def clustDict(clustMap):
