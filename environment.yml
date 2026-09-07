@@ -1,0 +1,14 @@
+name: corsettools
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.14
+  - pip
+  - biopython
+  - click
+  - matplotlib-base
+  - numpy
+  - pandas
+  - rich
+  - scipy
