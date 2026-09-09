@@ -17,26 +17,12 @@ option list at any time.
 
 ## Installation
 
-From PyPI:
-
-```bash
-pip install corset-tools
-```
-
 From a clone, for development:
 
 ```bash
 git clone https://github.com/Adamtaranto/Corset-tools.git
 cd Corset-tools
 pip install -e ".[dev,test]"
-```
-
-Or with conda:
-
-```bash
-conda env create -f environment.yml
-conda activate corsettools
-pip install .
 ```
 
 Requires Python 3.10 or newer.
